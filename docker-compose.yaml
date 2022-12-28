@@ -1,0 +1,53 @@
+version: "3.9"
+services:
+  geth-node:
+    container_name: geth-node
+    restart: unless-stopped
+    image: ethereum/client-go:stable
+    volumes:
+      - ./execution:/var/lib/goethereum
+      - ./jwt/jwt.hex:/tmp/jwt/jwtsecret
+    ports:
+      - 30303:30303/tcp
+      - 30303:30303/udp
+      - 8008:8008/tcp
+    expose:
+      - 8545
+      - 8546
+      - 8551
+    command:
+      - --http
+      - --http.api
+      - web3,eth,net,engine,admin
+      - --ws
+      - --ws.port=8546
+      - --ws.api=engine,eth,web3,net,debug
+      - --authrpc.jwtsecret=/tmp/jwt/jwtsecret
+      - --authrpc.addr=geth-node
+      - --authrpc.vhosts=geth-node
+      - --datadir=/var/lib/goethereum
+  prysm:
+    container_name: prysm-consensus
+    image: gcr.io/prysmaticlabs/prysm/beacon-chain:stable
+    depends_on:
+      - geth-node
+    volumes:
+      - ./consensus:/var/lib/prysm
+      - ./jwt/jwt.hex:/tmp/jwt/jwtsecret
+    ports:
+      - 4000:4000
+      - 13000:13000
+      - 12000:12000/udp
+    expose:
+      - 4000
+      - 4001
+    command:
+      - --execution-endpoint=http://geth-node:8551
+      - --jwt-secret=/tmp/jwt/jwtsecret
+      - --rpc-host=0.0.0.0
+      - --monitoring-host=0.0.0.0
+      - --checkpoint-sync-url=https://mainnet-checkpoint-sync.stakely.io
+      - --genesis-beacon-api-url=https://mainnet-checkpoint-sync.stakely.io
+      - --accept-terms-of-use
+      - --suggested-fee-recipient=0x65E9d8b6069eEc1Ef3b8bfaE57326008b7aec2c9
+      - --datadir=/var/lib/prysm/
